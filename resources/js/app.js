@@ -1,7 +1,4 @@
 import './bootstrap';
 
-import Alpine from 'alpinejs';
-
-window.Alpine = Alpine;
-
-Alpine.start();
+// AlpineJS now loaded via CDN - see layout files
+// It will be automatically initialized

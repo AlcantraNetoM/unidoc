@@ -4,7 +4,20 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Registro Realizado - UNIDOC</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Axios CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.8.2/dist/axios.min.js"></script>
+    
+    <!-- AlpineJS CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.7/dist/cdn.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    
+    <!-- Custom JS -->
+    <script src="{{ asset('js/app.js') }}" defer></script>
     <style>
         @keyframes bounceIn {
             from { opacity: 0; transform: scale(0.3); }

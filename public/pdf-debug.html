@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug PDF.js</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #fileInput {
+            margin: 20px 0;
+            padding: 10px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #pdfCanvas {
+            border: 1px solid #ccc;
+            display: block;
+            margin: 20px auto;
+            background: white;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: 1px solid #ccc;
+            background: #f8f9fa;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #e9ecef;
+        }
+        .info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #ffe7e7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            color: #d32f2f;
+        }
+        .success {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Debug PDF.js - Teste de Carregamento</h1>
+        
+        <div class="info">
+            <strong>Este teste vai ajudar a identificar problemas com o carregamento do PDF.</strong><br>
+            Abra o console do navegador (F12) para ver logs detalhados.
+        </div>
+
+        <input type="file" id="fileInput" accept=".pdf" />
+        
+        <div class="controls">
+            <button onclick="prevPage()">← Anterior</button>
+            <span id="pageInfo">Página 0 de 0</span>
+            <button onclick="nextPage()">Próxima →</button>
+            <button onclick="zoomOut()">Zoom -</button>
+            <span id="zoomInfo">100%</span>
+            <button onclick="zoomIn()">Zoom +</button>
+        </div>
+
+        <canvas id="pdfCanvas"></canvas>
+
+        <div id="status" class="info">Aguardando arquivo PDF...</div>
+    </div>
+
+    <!-- Carregar PDF.js do CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <script>
+        // Configurar PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let pdfDocument = null;
+        let currentPage = 1;
+        let totalPages = 0;
+        let zoomLevel = 1;
+        
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        const pageInfo = document.getElementById('pageInfo');
+        const zoomInfo = document.getElementById('zoomInfo');
+
+        function updateStatus(message, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            status.textContent = message;
+            status.className = type;
+        }
+
+        function updatePageInfo() {
+            pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+        }
+
+        function updateZoomInfo() {
+            zoomInfo.textContent = `${Math.round(zoomLevel * 100)}%`;
+        }
+
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            updateStatus('Verificando arquivo...', 'info');
+            
+            if (file.type !== 'application/pdf') {
+                updateStatus('Erro: Arquivo não é um PDF válido!', 'error');
+                return;
+            }
+
+            updateStatus(`Carregando arquivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
+
+            try {
+                // Converter arquivo para ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+                updateStatus(`ArrayBuffer criado: ${arrayBuffer.byteLength} bytes`, 'info');
+
+                // Carregar PDF
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                pdfDocument = await loadingTask.promise;
+                
+                totalPages = pdfDocument.numPages;
+                currentPage = 1;
+                
+                updateStatus(`PDF carregado com sucesso! ${totalPages} páginas encontradas.`, 'success');
+                updatePageInfo();
+                
+                // Renderizar primeira página
+                await renderPage();
+                
+            } catch (error) {
+                console.error('Erro detalhado:', error);
+                updateStatus(`Erro ao carregar PDF: ${error.message}`, 'error');
+            }
+        });
+
+        async function renderPage() {
+            if (!pdfDocument) return;
+
+            updateStatus(`Renderizando página ${currentPage}...`, 'info');
+
+            try {
+                const page = await pdfDocument.getPage(currentPage);
+                const viewport = page.getViewport({ scale: zoomLevel });
+                
+                console.log('Viewport:', {
+                    width: viewport.width,
+                    height: viewport.height,
+                    scale: viewport.scale
+                });
+
+                // Configurar canvas
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                console.log('Canvas configurado:', {
+                    width: canvas.width,
+                    height: canvas.height,
+                    clientWidth: canvas.clientWidth,
+                    clientHeight: canvas.clientHeight
+                });
+
+                // Limpar canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Renderizar página
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+
+                await page.render(renderContext).promise;
+                
+                updateStatus(`Página ${currentPage} renderizada com sucesso!`, 'success');
+                updatePageInfo();
+                updateZoomInfo();
+                
+            } catch (error) {
+                console.error('Erro ao renderizar página:', error);
+                updateStatus(`Erro ao renderizar página: ${error.message}`, 'error');
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage();
+            }
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPage();
+            }
+        }
+
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel * 1.2, 3);
+            renderPage();
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel / 1.2, 0.5);
+            renderPage();
+        }
+
+        // Log inicial
+        console.log('PDF.js Debug Test iniciado');
+        console.log('PDF.js versão:', pdfjsLib.version);
+        console.log('Worker configurado:', pdfjsLib.GlobalWorkerOptions.workerSrc);
+        
+        updateStatus('Sistema inicializado. Selecione um arquivo PDF para testar.', 'info');
+    </script>
+</body>
+</html>

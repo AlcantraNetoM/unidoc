@@ -1,0 +1,11 @@
+$user = App\Models\User::find(3);
+echo "ANTES da correção:" . PHP_EOL;
+echo "email_verified_at: " . ($user->email_verified_at ? $user->email_verified_at : "NULL") . PHP_EOL;
+
+// Verificar o email para resolver o problema do middleware verified
+$user->update(['email_verified_at' => now()]);
+
+$user->refresh();
+echo PHP_EOL . "DEPOIS da correção:" . PHP_EOL;
+echo "email_verified_at: " . $user->email_verified_at . PHP_EOL;
+echo "hasVerifiedEmail(): " . ($user->hasVerifiedEmail() ? "SIM" : "NÃO") . PHP_EOL;
